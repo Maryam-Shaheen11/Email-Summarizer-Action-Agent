@@ -1,11 +1,13 @@
 import html
+import re
 from datetime import datetime
 
 import streamlit as st
 from src.email_parser import normalize_email
 from src.workflow import run_email_workflow
 from src.calendar_utils import build_ics
-from src.google_calendar import add_reminder, guess_datetime
+from src.google_calendar import guess_datetime
+from src.email_invite import send_invite
 
 st.set_page_config(
     page_title="MailMind AI",
@@ -119,7 +121,7 @@ with st.sidebar:
     st.caption("Multi-agent email intelligence")
     st.divider()
     st.markdown("**How it works**")
-    st.markdown("1. 🔎 Analyze\n2. 📝 Summarize\n3. ✅ Extract actions\n4. 🚦 Prioritize\n5. 📅 Schedule reminder")
+    st.markdown("1. 🔎 Analyze\n2. 📝 Summarize\n3. ✅ Extract actions\n4. 🚦 Prioritize\n5. 📅 Send reminder")
     st.divider()
     st.markdown("**⚡ Try a sample email**")
     for name in SAMPLES:
@@ -132,8 +134,8 @@ with st.sidebar:
 st.markdown("""
 <div class="hero">
 <h1>✉️ MailMind AI</h1>
-<p>Turn long emails into clear decisions, action items and real Google Calendar reminders, powered by a team of AI agents.</p>
-<span class="chip">🤖 4 AI agents</span><span class="chip">⚡ Results in seconds</span><span class="chip">📅 Google Calendar sync</span>
+<p>Turn long emails into clear decisions, action items and calendar reminders delivered to your own inbox, powered by a team of AI agents.</p>
+<span class="chip">🤖 4 AI agents</span><span class="chip">⚡ Results in seconds</span><span class="chip">📅 Calendar invites</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -154,7 +156,7 @@ with right:
     <div class="card"><b>📝 Smart summary</b><br><span class="small">What the email is about, in seconds.</span></div>
     <div class="card"><b>✅ Action checklist</b><br><span class="small">Tick tasks off and track your progress.</span></div>
     <div class="card"><b>🚦 Priority detection</b><br><span class="small">Urgent, important or normal, with the reason.</span></div>
-    <div class="card"><b>📅 Calendar reminders</b><br><span class="small">One click adds the deadline to Google Calendar.</span></div>
+    <div class="card"><b>📅 Calendar reminders</b><br><span class="small">Get an invite in your inbox with alerts before the deadline.</span></div>
     """, unsafe_allow_html=True)
 
 # ---------------- Run analysis ----------------
@@ -244,8 +246,8 @@ if result:
 
     with tab3:
         if deadline:
-            st.markdown("### Schedule a reminder")
-            st.caption("Adjust the date and time if needed, then add it to your calendar.")
+            st.markdown("### Get a reminder")
+            st.caption("Adjust the date and time if needed, then enter your email. You will receive a calendar invite with reminders.")
             base = guess or datetime.now().replace(minute=0, second=0, microsecond=0)
 
             c1, c2 = st.columns(2)
@@ -254,23 +256,27 @@ if result:
             start_dt = datetime.combine(pick_date, pick_time)
             st.caption(f"📌 {start_dt.strftime('%A, %d %B %Y at %I:%M %p')} · {due_label(start_dt)}")
 
-            if st.button("🔔 Add to Google Calendar", type="primary", use_container_width=True):
-                try:
-                    actions_text = "\n".join(
-                        a.get("task", "") if isinstance(a, dict) else str(a) for a in actions
-                    )
-                    with st.spinner("Adding to your calendar..."):
-                        link = add_reminder(
-                            title=f"📧 {result.get('summary', 'Email reminder')[:80]}",
-                            start_dt=start_dt,
-                            description=actions_text,
+            user_email = st.text_input("📧 Your email", placeholder="you@gmail.com", key="user_email")
+
+            if st.button("🔔 Send me the reminder", type="primary", use_container_width=True):
+                if not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", user_email.strip()):
+                    st.error("Please enter a valid email address.")
+                else:
+                    try:
+                        actions_text = "\n".join(
+                            a.get("task", "") if isinstance(a, dict) else str(a) for a in actions
                         )
-                    st.toast("Reminder added to Google Calendar", icon="✅")
-                    st.success(f"Reminder added for {start_dt.strftime('%d %b %Y, %I:%M %p')}")
-                    if link:
-                        st.link_button("Open in Google Calendar", link)
-                except Exception as e:
-                    st.error(f"Could not add the reminder: {e}")
+                        with st.spinner("Sending your calendar invite..."):
+                            send_invite(
+                                to_email=user_email.strip(),
+                                title=result.get("summary", "Email reminder")[:80],
+                                start_local=start_dt,
+                                description=actions_text,
+                            )
+                        st.toast("Invite sent", icon="✅")
+                        st.success(f"Calendar invite sent to {user_email.strip()}. Open the email and tap Add to Calendar.")
+                    except Exception as e:
+                        st.error(f"Could not send the invite: {e}")
 
             ics = build_ics(
                 summary=result.get("summary", "Email reminder"),
@@ -279,7 +285,7 @@ if result:
             )
             st.download_button("📥 Download .ics file", data=ics, file_name="mailmind_reminder.ics",
                                mime="text/calendar", use_container_width=True)
-            st.caption("Your email is never stored by this app.")
+            st.caption("Your email address is only used to send this invite and is never stored.")
         else:
             st.info("No reliable deadline was found, so no reminder was created.")
             st.caption("This avoids creating a false reminder from an ambiguous date.")
