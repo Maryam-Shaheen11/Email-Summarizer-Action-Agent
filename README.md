@@ -1,77 +1,57 @@
-# ✉️ MailMind AI — Email Summarizer Agent
 
-A hackathon-ready multi-agent email intelligence app built with **CrewAI + Streamlit + Groq GPT-OSS 120B**.
+# 📧 Email Summarizer (Multi-Agent Email Action Agent)
 
-## Workflow
+Turn long emails into a clear summary, action items, priority and a calendar reminder, using a team of AI agents.
 
-Email → Analyzer Agent → Summarizer Agent → Action Agent → Priority Agent → Reminder automation → Streamlit dashboard
+🔗 **Live App:** https://email-summarizer-action-agent.streamlit.app/
+
+---
+
+## Problem
+
+People get many long emails every day. Important tasks and deadlines are hidden inside the text and are easy to miss.
+
+## Solution
+
+Paste an email and four AI agents analyze it. The app shows what the email is about, what you need to do, how urgent it is, and sends a calendar reminder before the deadline.
 
 ## Features
 
-- Paste an email and analyze it with a coordinated CrewAI team.
-- Concise executive summary.
-- Key points.
-- Action items with owner/deadline when explicitly available.
-- Priority classification: URGENT / IMPORTANT / NORMAL.
-- Deadline extraction with a no-invention rule.
-- Generates an `.ics` calendar reminder when a reliable deadline is found.
-- API key stays in Streamlit Secrets.
-- Clean responsive Streamlit interface.
+- 📝 **Smart summary:** what the email is about, in seconds
+- ✅ **Action checklist:** tasks with owner and due date, tick them off as you go
+- 🚦 **Priority detection:** Urgent, Important or Normal, with the reason
+- 📅 **Calendar reminder:** invite sent to your inbox with alerts, or download the `.ics` file
+- ⚡ **Sample emails:** try the app quickly without writing your own email
 
-## Current stack
+## How It Works
 
-- Python 3.13
-- CrewAI 1.15.22
-- Streamlit 1.64.0
-- Groq API
-- `openai/gpt-oss-120b`
-- LiteLLM provider integration
+1. Paste an email (subject, sender, text) or pick a sample
+2. Four AI agents analyze it one after another
+3. See the summary, action items, priority and deadline
+4. Pick a date and time for the reminder
+5. Get a calendar invite in your inbox
 
-## Deploy on Streamlit Community Cloud
+## The 4 AI Agents
 
-1. Create a GitHub repository.
-2. Upload this project exactly as structured.
-3. Connect the repository to Streamlit Community Cloud.
-4. Set the main file to `app.py`.
-5. In Streamlit Cloud, open **App settings → Secrets**.
-6. Add:
+| Agent | Job |
+|---|---|
+| Email Analyzer | Reads the email and understands the topic and key details |
+| Summarizer | Writes a short, clear summary |
+| Action Extractor | Finds tasks, owners and deadlines |
+| Priority Detector | Decides Urgent, Important or Normal, with the reason |
 
-```toml
-GROQ_API_KEY = "your_key"
-GROQ_MODEL = "openai/gpt-oss-120b"
+## High-Level Flow
+
+```
+User → Streamlit App → CrewAI (4 Agents + Groq LLM) → Results → Calendar Reminder
 ```
 
-7. Deploy.
+## Tech Stack
 
-## Important
-
-Do not commit `.streamlit/secrets.toml`. Only commit `.streamlit/secrets.toml.example`.
-
-## Architecture
-
-```text
-                    ┌─────────────────────┐
-                    │    Streamlit UI     │
-                    └──────────┬──────────┘
-                               │
-                               ▼
-                    ┌─────────────────────┐
-                    │   CrewAI Workflow   │
-                    └──────────┬──────────┘
-                               │
-          ┌────────────────────┼────────────────────┐
-          ▼                    ▼                    ▼
-   Analyzer Agent       Summarizer Agent      Action Agent
-          │                    │                    │
-          └────────────────────┼────────────────────┘
-                               ▼
-                       Priority Agent
-                               │
-                               ▼
-                    Reminder Automation
-                         (.ics file)
-```
-
-## Notes
-
-The reminder automation is intentionally lightweight and deployment-safe: Streamlit generates a calendar event file rather than pretending to run a persistent background scheduler on a serverless-style app.
+| Component | Technology |
+|---|---|
+| User interface | Streamlit |
+| Language | Python |
+| Agent framework | CrewAI |
+| AI model | Groq, GPT-OSS 120B |
+| Reminder | Calendar
