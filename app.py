@@ -2,6 +2,7 @@ import streamlit as st
 from src.email_parser import normalize_email
 from src.workflow import run_email_workflow
 from src.calendar_utils import build_ics
+from src.google_calendar import add_reminder
 
 st.set_page_config(
     page_title="MailMind AI",
@@ -69,7 +70,7 @@ with right:
     <div class="card"><b>📝 Smart summary</b><br><span class="small">A concise explanation of what the email is about.</span></div>
     <div class="card"><b>✅ Action items</b><br><span class="small">Tasks, owners and deadlines extracted from the email.</span></div>
     <div class="card"><b>🚦 Priority</b><br><span class="small">Urgent, important or normal with a reason.</span></div>
-    <div class="card"><b>📅 Automation</b><br><span class="small">A calendar reminder file is generated when a clear deadline is found.</span></div>
+    <div class="card"><b>📅 Automation</b><br><span class="small">Real Google Calendar reminder is created when a clear deadline is found.</span></div>
     """, unsafe_allow_html=True)
 
 if run:
@@ -95,7 +96,7 @@ if result:
     st.markdown("## Analysis")
 
     priority = result.get("priority", "NORMAL").upper()
-    priority_icon = {"URGENT":"🔴", "IMPORTANT":"🟠", "NORMAL":"🟢"}.get(priority, "⚪")
+    priority_icon = {"URGENT": "🔴", "IMPORTANT": "🟠", "NORMAL": "🟢"}.get(priority, "⚪")
 
     m1, m2, m3 = st.columns(3)
     m1.metric("Priority", f"{priority_icon} {priority}")
@@ -130,19 +131,41 @@ if result:
         deadline = result.get("deadline")
         if deadline:
             st.success(f"📅 Reminder detected for **{deadline}**.")
+
+            if st.button(
+                "🔔 Add to my Google Calendar (real reminder)",
+                type="primary",
+                use_container_width=True,
+            ):
+                try:
+                    actions_text = "\n".join(
+                        a.get("task", "") if isinstance(a, dict) else str(a)
+                        for a in result.get("action_items", [])
+                    )
+                    link = add_reminder(
+                        title=f"📧 {result.get('summary', 'Email reminder')[:80]}",
+                        deadline_text=deadline,
+                        description=actions_text,
+                    )
+                    st.success("Reminder Google Calendar mein add ho gaya! ✅")
+                    if link:
+                        st.link_button("Open in Google Calendar", link)
+                except Exception as e:
+                    st.error(f"Reminder fail hua: {e}")
+
             ics = build_ics(
                 summary=result.get("summary", "Email reminder"),
                 deadline=deadline,
                 action=result.get("action_items", []),
             )
             st.download_button(
-                "📥 Add reminder to Calendar (.ics)",
+                "📥 Download .ics (backup)",
                 data=ics,
                 file_name="mailmind_reminder.ics",
                 mime="text/calendar",
                 use_container_width=True,
             )
-            st.caption("The .ics file can be opened/imported in calendar applications. The app does not store your email.")
+            st.caption("The app does not store your email.")
         else:
             st.info("No reliable deadline was found, so no reminder was created.")
             st.caption("This avoids creating a false reminder from an ambiguous date.")
