@@ -1,27 +1,26 @@
 import os
 import litellm
 
-# -------------------------------------------------------------------
+# ============================================================
 # CrewAI + Groq compatibility fix
-# CrewAI 1.15.x may add Anthropic-specific `cache_breakpoint`
-# metadata to messages. Groq rejects this field.
-# -------------------------------------------------------------------
+# Removes unsupported cache_breakpoint metadata
+# ============================================================
 
 _original_completion = litellm.completion
 
 
 def _groq_safe_completion(*args, **kwargs):
-    # Disable LiteLLM caching for this request.
+    # Disable LiteLLM caching for Groq
     kwargs["caching"] = False
 
     messages = kwargs.get("messages", [])
 
     for message in messages:
         if isinstance(message, dict):
-            # Remove unsupported field from the message itself.
+            # Remove unsupported field
             message.pop("cache_breakpoint", None)
 
-            # Also remove it from content blocks if present.
+            # Also remove it from content blocks
             content = message.get("content")
 
             if isinstance(content, list):
@@ -32,18 +31,26 @@ def _groq_safe_completion(*args, **kwargs):
     return _original_completion(*args, **kwargs)
 
 
-# Patch LiteLLM before CrewAI makes its API calls.
+# Apply patch before CrewAI makes requests
 litellm.completion = _groq_safe_completion
 litellm.drop_params = True
 
 
+# Import CrewAI only after the patch
 from crewai import LLM
 
 
-MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
+MODEL = os.getenv(
+    "GROQ_MODEL",
+    "openai/gpt-oss-120b"
+)
 
 
-def get_groq_llm():
+def get_llm():
+    """
+    Create the Groq LLM used by all CrewAI agents.
+    """
+
     api_key = os.getenv("GROQ_API_KEY")
 
     if not api_key:
