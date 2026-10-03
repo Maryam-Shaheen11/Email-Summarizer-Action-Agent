@@ -1,3 +1,6 @@
 crewai[litellm]==1.15.22
 streamlit==1.64.0
 python-dotenv>=1.0.1,<2.0.0
+google-api-python-client>=2.140.0
+google-auth>=2.30.0
+python-dateutil>=2.9.0
